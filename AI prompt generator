@@ -396,15 +396,19 @@
         gap: 0.45rem;
       }
 
+      /* FIX (Bug): Pill inputs use accessibility-hiding instead of pointer-events:none
+         so keyboard users can focus and activate them normally. */
       .pill {
         position: relative;
       }
 
       .pill input {
         position: absolute;
-        opacity: 0;
-        inset: 0;
-        pointer-events: none;
+        clip-path: inset(50%);
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        white-space: nowrap;
       }
 
       .pill span {
@@ -425,6 +429,12 @@
         background: color-mix(in oklab, var(--brand) 17%, var(--surface-strong));
       }
 
+      /* FIX (A11y): Focus ring visible on pill inputs for keyboard users */
+      .pill input:focus-visible + span {
+        outline: 3px solid color-mix(in oklab, var(--brand) 50%, transparent);
+        outline-offset: 2px;
+      }
+
       .slider-row {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -443,6 +453,11 @@
         color: var(--muted);
       }
 
+      /* FIX (Tip): pill--inline modifier class instead of inline style */
+      .pill--inline {
+        width: fit-content;
+      }
+
       .generator-actions {
         display: flex;
         flex-wrap: wrap;
@@ -456,12 +471,25 @@
         min-height: 1.3em;
       }
 
+      /* FIX (UX): inline field error shown near the relevant input */
+      .field-error {
+        font-size: 0.85rem;
+        color: #c0392b;
+        min-height: 1.1em;
+        display: none;
+      }
+
+      .field-error.visible {
+        display: block;
+      }
+
       .output-wrap {
         margin-top: 1.2rem;
         border-top: 1px solid var(--line);
         padding-top: 1rem;
       }
 
+      /* FIX (A11y): tablist role applied via JS; these styles support the ARIA tab pattern */
       .tab-row {
         display: flex;
         flex-wrap: wrap;
@@ -478,7 +506,8 @@
         cursor: pointer;
       }
 
-      .tab-btn.active {
+      .tab-btn.active,
+      .tab-btn[aria-selected="true"] {
         border-color: color-mix(in oklab, var(--brand) 55%, var(--line));
         background: color-mix(in oklab, var(--brand) 15%, var(--surface-strong));
         color: var(--text);
@@ -513,6 +542,19 @@
         font-size: 0.87rem;
         max-height: 340px;
         overflow: auto;
+      }
+
+      /* FIX (UX): character counter warning */
+      .char-counter {
+        font-size: 0.82rem;
+        color: var(--muted);
+        text-align: right;
+        transition: color 200ms ease;
+      }
+
+      .char-counter.warn {
+        color: #c0392b;
+        font-weight: 600;
       }
 
       .about {
@@ -703,8 +745,9 @@
         </nav>
 
         <div class="nav-actions">
-          <button id="themeToggle" class="ghost-btn" type="button" aria-label="Toggle dark mode">
-            Theme
+          <!-- FIX (A11y): Initial label reflects actual current theme, set correctly by JS on load -->
+          <button id="themeToggle" class="ghost-btn" type="button" aria-label="Switch to dark mode">
+            Dark
           </button>
           <a class="solid-btn" href="#cta">Get Started</a>
           <button id="menuBtn" class="menu-btn" type="button" aria-expanded="false" aria-controls="mobileNav">
@@ -774,7 +817,10 @@
                 name="goal"
                 placeholder="Example: Create a 3-email onboarding sequence for a budgeting app targeting first-time freelancers."
                 required
+                maxlength="1200"
               ></textarea>
+              <!-- FIX (Tip): live character counter for goal -->
+              <div class="char-counter" id="goalCounter">0 / 1200</div>
             </div>
 
             <div class="field">
@@ -813,12 +859,15 @@
 
             <div class="field full">
               <label>Target AI tool(s)</label>
-              <div class="tool-pills" role="group" aria-label="Target AI tools">
+              <!-- FIX (A11y + UX): aria-describedby links the error message to this group -->
+              <div class="tool-pills" role="group" aria-label="Target AI tools" aria-describedby="toolsError">
                 <label class="pill"><input type="checkbox" name="tools" value="chatgpt" checked /><span>ChatGPT</span></label>
                 <label class="pill"><input type="checkbox" name="tools" value="claude" checked /><span>Claude</span></label>
                 <label class="pill"><input type="checkbox" name="tools" value="gemini" checked /><span>Gemini</span></label>
                 <label class="pill"><input type="checkbox" name="tools" value="generic" /><span>Universal</span></label>
               </div>
+              <!-- FIX (UX): Error shown inline near the pills, not in a distant status bar -->
+              <div class="field-error" id="toolsError" role="alert">Pick at least one target AI tool before generating.</div>
             </div>
 
             <div class="field full">
@@ -827,20 +876,24 @@
                 id="constraints"
                 name="constraints"
                 placeholder="Example: Keep under 220 words per email, avoid hype language, include one concrete metric."
+                maxlength="800"
               ></textarea>
+              <!-- FIX (Tip): live character counter for constraints -->
+              <div class="char-counter" id="constraintsCounter">0 / 800</div>
             </div>
 
             <div class="field">
               <label for="creativity">Creativity level</label>
               <div class="slider-row">
-                <input id="creativity" name="creativity" type="range" min="10" max="90" value="55" />
+                <input id="creativity" name="creativity" type="range" min="10" max="90" value="55" step="1" />
                 <output id="creativityValue" for="creativity">55</output>
               </div>
               <div class="helper">Lower = tighter + practical. Higher = more exploratory.</div>
             </div>
 
             <div class="field">
-              <label class="pill" style="width: fit-content">
+              <!-- FIX (Tip): pill--inline modifier class replaces inline style -->
+              <label class="pill pill--inline">
                 <input id="aiRefine" type="checkbox" />
                 <span>Use on-device AI refinement (experimental)</span>
               </label>
@@ -855,13 +908,14 @@
           </form>
 
           <div class="output-wrap" id="outputWrap" hidden>
-            <div class="tab-row" id="tabRow" aria-label="Generated prompt tabs"></div>
+            <!-- FIX (A11y): role="tablist" on container -->
+            <div class="tab-row" id="tabRow" role="tablist" aria-label="Generated prompt tabs"></div>
             <article class="output-card" id="outputCard">
               <div class="output-head">
                 <strong id="outputLabel">Generated Prompt</strong>
                 <button class="ghost-btn" id="copyBtn" type="button">Copy</button>
               </div>
-              <pre class="output-body" id="outputText"></pre>
+              <pre class="output-body" id="outputText" role="tabpanel"></pre>
             </article>
           </div>
         </section>
@@ -954,13 +1008,14 @@
         <div class="section-head">
           <h2 id="faqTitle">FAQ</h2>
         </div>
+        <!-- FIX (A11y): Each panel has a unique id; each trigger has aria-controls pointing to it -->
         <div class="faq-list">
           <article class="faq-item">
-            <button class="faq-trigger" type="button" aria-expanded="false">
+            <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-panel-1">
               Does this send my data anywhere?
-              <span class="faq-sign">+</span>
+              <span class="faq-sign" aria-hidden="true">+</span>
             </button>
-            <div class="faq-panel">
+            <div class="faq-panel" id="faq-panel-1" role="region">
               <p>
                 No backend here. Everything runs in your browser. The only persistence is localStorage for theme and
                 your recent draft values.
@@ -969,11 +1024,11 @@
           </article>
 
           <article class="faq-item">
-            <button class="faq-trigger" type="button" aria-expanded="false">
+            <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-panel-2">
               What does "on-device AI refinement" mean?
-              <span class="faq-sign">+</span>
+              <span class="faq-sign" aria-hidden="true">+</span>
             </button>
-            <div class="faq-panel">
+            <div class="faq-panel" id="faq-panel-2" role="region">
               <p>
                 If your browser exposes a local AI model API, PromptSmith can optionally polish generated prompts with
                 that model. If not supported, it quietly falls back to the built-in prompt engine.
@@ -982,11 +1037,11 @@
           </article>
 
           <article class="faq-item">
-            <button class="faq-trigger" type="button" aria-expanded="false">
+            <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-panel-3">
               Can I use these prompts for client work?
-              <span class="faq-sign">+</span>
+              <span class="faq-sign" aria-hidden="true">+</span>
             </button>
-            <div class="faq-panel">
+            <div class="faq-panel" id="faq-panel-3" role="region">
               <p>
                 Yes. You should still review output for brand tone and factual accuracy, but teams use this pattern for
                 campaign drafts, strategy docs, UI copy, and internal research summaries.
@@ -1007,12 +1062,12 @@
           </div>
           <form id="leadForm" class="inline-form">
             <div class="field">
-              <label for="name">Name</label>
-              <input id="name" name="name" type="text" placeholder="Alicia" required />
+              <label for="leadName">Name</label>
+              <input id="leadName" name="name" type="text" placeholder="Alicia" required />
             </div>
             <div class="field">
-              <label for="email">Email</label>
-              <input id="email" name="email" type="email" placeholder="you@company.com" required />
+              <label for="leadEmail">Email</label>
+              <input id="leadEmail" name="email" type="email" placeholder="you@company.com" required />
             </div>
             <button class="solid-btn" type="submit">Send me the starter pack</button>
             <p id="leadStatus" class="success" aria-live="polite"></p>
@@ -1022,7 +1077,8 @@
     </main>
 
     <footer class="site-footer container">
-      <p>(c) <span id="year"></span> PromptSmith Studio. Built with HTML, CSS, and JavaScript only.</p>
+      <!-- FIX (Tip): removed unnecessary String() wrapper; textContent coerces numbers automatically -->
+      <p>&copy; <span id="year"></span> PromptSmith Studio. Built with HTML, CSS, and JavaScript only.</p>
     </footer>
 
     <script>
@@ -1049,6 +1105,13 @@
         const copyBtn = document.getElementById("copyBtn");
         const generateBtn = document.getElementById("generateBtn");
         const aiRefineInput = document.getElementById("aiRefine");
+        const toolsError = document.getElementById("toolsError");
+
+        // FIX (Tip): character counter elements
+        const goalEl = document.getElementById("goal");
+        const constraintsEl = document.getElementById("constraints");
+        const goalCounter = document.getElementById("goalCounter");
+        const constraintsCounter = document.getElementById("constraintsCounter");
 
         const leadForm = document.getElementById("leadForm");
         const leadStatus = document.getElementById("leadStatus");
@@ -1056,11 +1119,22 @@
         let promptsByTool = {};
         let activeTool = "";
 
+        // FIX (UX): copyBtn timeout handle to prevent race condition
+        let copyTimeout = null;
+
+        // FIX (Tip): debounce timer for draft saving
+        let draftTimer = null;
+
+        // ─── Theme ───────────────────────────────────────────────────────────
+
         function setTheme(theme) {
           html.setAttribute("data-theme", theme);
           localStorage.setItem(STORAGE.theme, theme);
-          themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
-          themeToggle.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} mode`);
+          // FIX (A11y): button text and aria-label always reflect the action (switch TO the other theme)
+          const nextTheme = theme === "dark" ? "light" : "dark";
+          const label = theme === "dark" ? "Light" : "Dark";
+          themeToggle.textContent = label;
+          themeToggle.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
         }
 
         function initTheme() {
@@ -1072,6 +1146,8 @@
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           setTheme(prefersDark ? "dark" : "light");
         }
+
+        // ─── Menu ────────────────────────────────────────────────────────────
 
         function initMenu() {
           menuBtn?.addEventListener("click", () => {
@@ -1088,6 +1164,8 @@
           });
         }
 
+        // ─── Smooth scroll ───────────────────────────────────────────────────
+
         function initSmoothScroll() {
           document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
             anchor.addEventListener("click", (event) => {
@@ -1100,6 +1178,8 @@
             });
           });
         }
+
+        // ─── Reveal on scroll ────────────────────────────────────────────────
 
         function initReveal() {
           const observer = new IntersectionObserver(
@@ -1117,6 +1197,8 @@
           document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));
         }
 
+        // ─── FAQ ─────────────────────────────────────────────────────────────
+
         function initFaq() {
           document.querySelectorAll(".faq-item").forEach((item) => {
             const btn = item.querySelector(".faq-trigger");
@@ -1128,6 +1210,29 @@
             });
           });
         }
+
+        // ─── Char counters ───────────────────────────────────────────────────
+
+        // FIX (Tip): live character counter with warning threshold
+        function updateCharCounter(input, counter, max) {
+          const len = input.value.length;
+          counter.textContent = `${len} / ${max}`;
+          counter.classList.toggle("warn", len > max * 0.85);
+        }
+
+        function initCharCounters() {
+          const maxGoal = 1200;
+          const maxConstraints = 800;
+
+          goalEl.addEventListener("input", () => updateCharCounter(goalEl, goalCounter, maxGoal));
+          constraintsEl.addEventListener("input", () => updateCharCounter(constraintsEl, constraintsCounter, maxConstraints));
+
+          // Initialise counts from loaded draft values
+          updateCharCounter(goalEl, goalCounter, maxGoal);
+          updateCharCounter(constraintsEl, constraintsCounter, maxConstraints);
+        }
+
+        // ─── Prompt engine ───────────────────────────────────────────────────
 
         function formatModeLabel(value) {
           const map = {
@@ -1303,16 +1408,23 @@
           return null;
         }
 
+        // ─── Tab rendering ───────────────────────────────────────────────────
+
+        // FIX (A11y): tabs get role="tab", aria-selected, and aria-controls pointing to the panel
         function renderTabs() {
           tabRow.innerHTML = "";
           const tools = Object.keys(promptsByTool);
           if (!tools.length) return;
 
-          tools.forEach((tool) => {
+          tools.forEach((tool, index) => {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = "tab-btn" + (tool === activeTool ? " active" : "");
             btn.textContent = promptsByTool[tool].label;
+            btn.setAttribute("role", "tab");
+            btn.setAttribute("aria-selected", tool === activeTool ? "true" : "false");
+            btn.setAttribute("aria-controls", "outputText");
+            btn.id = `tab-${tool}`;
             btn.addEventListener("click", () => {
               activeTool = tool;
               updateOutputCard();
@@ -1326,10 +1438,15 @@
           if (!active) return;
           outputLabel.textContent = `${active.label} Prompt`;
           outputText.textContent = active.prompt;
+          // FIX (A11y): sync aria-selected on all tab buttons
           tabRow.querySelectorAll(".tab-btn").forEach((btn) => {
-            btn.classList.toggle("active", btn.textContent === active.label);
+            const isActive = btn.id === `tab-${activeTool}`;
+            btn.classList.toggle("active", isActive);
+            btn.setAttribute("aria-selected", isActive ? "true" : "false");
           });
         }
+
+        // ─── Draft persistence ───────────────────────────────────────────────
 
         function saveDraft() {
           const formData = new FormData(promptForm);
@@ -1372,19 +1489,27 @@
               });
             }
           } catch (_error) {
+            // FIX (Tip): log a warning so corrupted drafts are visible during development
+            console.warn("PromptSmith: corrupted draft cleared", _error);
             localStorage.removeItem(STORAGE.draft);
           }
         }
+
+        // ─── Generate ────────────────────────────────────────────────────────
 
         async function handleGenerate(event) {
           event.preventDefault();
 
           const formData = new FormData(promptForm);
           const selectedTools = formData.getAll("tools");
+
+          // FIX (UX): show error inline near the tool pills, not only in the status bar
           if (!selectedTools.length) {
-            statusEl.textContent = "Pick at least one target AI tool before generating.";
+            toolsError.classList.add("visible");
+            toolsError.focus();
             return;
           }
+          toolsError.classList.remove("visible");
 
           const data = {
             goal: String(formData.get("goal") || "").trim(),
@@ -1440,19 +1565,28 @@
           saveDraft();
           generateBtn.disabled = false;
           generateBtn.textContent = "Generate Prompt";
+
+          // Scroll output into view so users know it's ready
+          outputWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
+
+        // ─── Copy ────────────────────────────────────────────────────────────
 
         async function copyActivePrompt() {
           const active = promptsByTool[activeTool];
           if (!active?.prompt) return;
           try {
             await navigator.clipboard.writeText(active.prompt);
+            // FIX (UX): clear any existing timeout before setting a new one to avoid race condition
+            clearTimeout(copyTimeout);
             copyBtn.textContent = "Copied";
-            setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
+            copyTimeout = setTimeout(() => (copyBtn.textContent = "Copy"), 1400);
           } catch (_error) {
             statusEl.textContent = "Clipboard access failed. You can still copy manually from the prompt panel.";
           }
         }
+
+        // ─── Reset ───────────────────────────────────────────────────────────
 
         function resetGenerator() {
           promptForm.reset();
@@ -1463,16 +1597,33 @@
           outputWrap.hidden = true;
           tabRow.innerHTML = "";
           outputText.textContent = "";
+          toolsError.classList.remove("visible");
+
+          // FIX (Tip): reset char counters after form reset
+          updateCharCounter(goalEl, goalCounter, 1200);
+          updateCharCounter(constraintsEl, constraintsCounter, 800);
+
           statusEl.textContent = "Generator reset. Start with a fresh brief.";
           localStorage.removeItem(STORAGE.draft);
+
+          // FIX (UX): scroll back to generator top so user sees the cleared form
+          document.getElementById("generator").scrollIntoView({ behavior: "smooth", block: "start" });
         }
+
+        // ─── Lead form ───────────────────────────────────────────────────────
 
         function initLeadForm() {
           leadForm.addEventListener("submit", (event) => {
             event.preventDefault();
+
+            // FIX (Bug): use leadForm.elements to safely access named fields,
+            // avoiding collision with the native HTMLElement.name property
+            const nameEl = leadForm.elements.namedItem("name");
+            const emailEl = leadForm.elements.namedItem("email");
+
             const payload = {
-              name: leadForm.name.value.trim(),
-              email: leadForm.email.value.trim(),
+              name: nameEl.value.trim(),
+              email: emailEl.value.trim(),
               timestamp: new Date().toISOString()
             };
 
@@ -1485,21 +1636,30 @@
             saved.push(payload);
             localStorage.setItem(STORAGE.leads, JSON.stringify(saved));
 
-            leadStatus.textContent = `Thanks ${payload.name.split(" ")[0]} - you're in. Demo entry saved locally.`;
+            leadStatus.textContent = `Thanks ${payload.name.split(" ")[0]} — you're in. Demo entry saved locally.`;
             leadForm.reset();
           });
         }
+
+        // ─── Form bindings ───────────────────────────────────────────────────
 
         function initFormBindings() {
           creativity.addEventListener("input", () => {
             creativityValue.textContent = creativity.value;
           });
 
-          promptForm.addEventListener("input", saveDraft);
+          // FIX (Tip): debounce draft saving by 350ms to avoid thrashing localStorage on every keystroke
+          promptForm.addEventListener("input", () => {
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(saveDraft, 350);
+          });
+
           promptForm.addEventListener("submit", handleGenerate);
           copyBtn.addEventListener("click", copyActivePrompt);
           resetBtn.addEventListener("click", resetGenerator);
         }
+
+        // ─── Init ────────────────────────────────────────────────────────────
 
         function init() {
           initTheme();
@@ -1510,13 +1670,15 @@
           loadDraft();
           initFormBindings();
           initLeadForm();
+          initCharCounters();
 
           themeToggle.addEventListener("click", () => {
             const current = html.getAttribute("data-theme") || "light";
             setTheme(current === "dark" ? "light" : "dark");
           });
 
-          document.getElementById("year").textContent = String(new Date().getFullYear());
+          // FIX (Tip): textContent coerces numbers — no String() wrapper needed
+          document.getElementById("year").textContent = new Date().getFullYear();
         }
 
         init();
